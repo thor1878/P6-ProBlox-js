@@ -1,20 +1,23 @@
-import { P5CanvasInstance, ReactP5Wrapper } from '@p5-wrapper/react';
-
-function sketch(p5: P5CanvasInstance) {
-  p5.setup = () => p5.createCanvas(600, 400, p5.WEBGL);
-
-  p5.draw = () => {
-    p5.background(250);
-    p5.normalMaterial();
-    p5.push();
-    p5.rotateZ(p5.frameCount * 0.01);
-    p5.rotateX(p5.frameCount * 0.01);
-    p5.rotateY(p5.frameCount * 0.01);
-    p5.plane(100);
-    p5.pop();
-  };
-}
+import { useRef, useEffect, useState } from 'react';
+import { sketch } from './sketch';
+import { ReactP5Wrapper } from '@p5-wrapper/react';
+import { useGame } from './GameContext';
 
 export const Game = () => {
-  return <ReactP5Wrapper sketch={sketch} />;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const game = useGame();
+  const [height, setHeight] = useState(0);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    setHeight(containerRef.current.offsetHeight);
+  }, [containerRef.current]);
+  return (
+    <div
+      ref={containerRef}
+      className="flex w-1/2 flex-col items-center justify-center border-l-2 border-sky-700 bg-neutral-800 "
+    >
+      <ReactP5Wrapper sketch={(p5) => sketch(p5, height, game)} />
+    </div>
+  );
 };
