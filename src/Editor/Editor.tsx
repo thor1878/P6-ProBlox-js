@@ -14,7 +14,7 @@ export const Editor = () => {
     <div className="h-4/5">
       <MonacoEditor
         className="z-0"
-        defaultValue={code}
+        defaultValue={code.current}
         onChange={handleOnChange}
         defaultLanguage="javascript"
         theme="vs-dark"

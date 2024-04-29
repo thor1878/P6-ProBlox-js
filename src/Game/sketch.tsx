@@ -1,6 +1,6 @@
 import { P5CanvasInstance } from '@p5-wrapper/react';
 import { GameContextType } from './GameContext';
-import { colors, Maze, mazes, Position } from './GameConfig';
+import { colors, Maze, mazes } from './GameConfig';
 
 export function sketch(p5: P5CanvasInstance, height: number, game: GameContextType) {
   const scale = 0.7;
@@ -9,41 +9,22 @@ export function sketch(p5: P5CanvasInstance, height: number, game: GameContextTy
   const tileSize = size / gridSize;
 
   p5.setup = () => {
+    p5.noLoop();
     p5.createCanvas(size, size);
-  };
 
-  p5.draw = () => {
-    p5.background(255, 0, 0);
-    p5.stroke(0);
+    p5.background(34, 34, 34);
+    p5.stroke(34, 34, 34);
 
     for (let row = 0; row < gridSize; row++) {
       for (let col = 0; col < gridSize; col++) {
         p5.fill(colors.wall);
-        p5.rect(col * tileSize, row * tileSize, tileSize);
+        p5.rect(col * tileSize, row * tileSize, tileSize, tileSize, 2);
       }
     }
 
     p5.fill(colors.path);
-    for (let i = 0; i < mazes[game.level].path.length - 1; i++) {
-      const pos1: Position = mazes[game.level].path[i];
-      const pos2: Position = mazes[game.level].path[i + 1];
-
-      if (pos1.row !== pos2.row && pos1.col !== pos2.col) continue;
-      else if (pos1.row !== pos2.row) {
-        const minimum = Math.min(pos1.row, pos2.row);
-        const maximum = Math.max(pos1.row, pos2.row);
-
-        for (let j = minimum; j <= maximum; j++) {
-          p5.rect(pos1.col * tileSize, j * tileSize, tileSize);
-        }
-      } else if (pos1.col !== pos2.col) {
-        const minimum = Math.min(pos1.col, pos2.col);
-        const maximum = Math.max(pos1.col, pos2.col);
-
-        for (let j = minimum; j <= maximum; j++) {
-          p5.rect(j * tileSize, pos1.row * tileSize, tileSize);
-        }
-      }
+    for (const path of game.path) {
+      p5.rect(path.col * tileSize, path.row * tileSize, tileSize, tileSize, 2);
     }
 
     for (let row = 0; row < gridSize; row++) {
@@ -52,11 +33,17 @@ export function sketch(p5: P5CanvasInstance, height: number, game: GameContextTy
           const mazeVal = mazes[game.level][key as keyof Omit<Maze, 'path'>];
 
           if (!mazeVal) break;
+          if (key === 'player') continue;
           if (mazeVal.row === row && mazeVal.col === col) {
             p5.fill(colors[key as keyof typeof colors]);
-            p5.rect(col * tileSize, row * tileSize, tileSize);
+            p5.rect(col * tileSize, row * tileSize, tileSize, tileSize, 2);
             break;
           }
+        }
+
+        if (game.player.col === col && game.player.row === row) {
+          p5.fill(colors.player);
+          p5.rect(col * tileSize, row * tileSize, tileSize, tileSize, 2);
         }
       }
     }
