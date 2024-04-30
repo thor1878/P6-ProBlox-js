@@ -1,15 +1,6 @@
 import { createContext, useContext, ReactNode, useState, Dispatch, SetStateAction, useEffect, useRef } from 'react';
 import { mazes, Position } from './GameConfig';
-
-declare global {
-  interface Window {
-    pathRight: boolean;
-    pathBelow: boolean;
-    pathLeft: boolean;
-    pathAbove: boolean;
-    gameOver: boolean;
-  }
-}
+import { useWindowState } from './useWindowState';
 
 type GameState = 'RUNNING' | 'DONE' | 'INITIAL';
 
@@ -21,7 +12,9 @@ export type GameContextType = {
   gameOver: boolean;
   setGameOver: Dispatch<SetStateAction<boolean>>;
   level: number;
-  setLevel: Dispatch<SetStateAction<number>>;
+  doorOpen: boolean;
+  blinkTimer: React.MutableRefObject<NodeJS.Timer | undefined>;
+  setLevel: (level: number) => void;
   code: React.MutableRefObject<string>;
   setCode: (value: string) => void;
   error: string | null;
@@ -29,6 +22,8 @@ export type GameContextType = {
   path: Position[];
   setPath: Dispatch<SetStateAction<Position[]>>;
   run: () => void;
+  speed: number;
+  setSpeed: (speed: number) => void;
 };
 
 export const GameContext = createContext<GameContextType>({
@@ -39,6 +34,8 @@ export const GameContext = createContext<GameContextType>({
   gameOver: false,
   setGameOver: () => null,
   level: 0,
+  doorOpen: false,
+  blinkTimer: { current: undefined },
   setLevel: () => null,
   code: null as unknown as React.MutableRefObject<string>,
   setCode: () => null,
@@ -47,6 +44,8 @@ export const GameContext = createContext<GameContextType>({
   path: [],
   setPath: () => null,
   run: () => null,
+  speed: 200,
+  setSpeed: () => null,
 });
 
 export const useGame = () => {
@@ -58,14 +57,26 @@ type GameContextProviderProps = {
 };
 
 export const GameContextProvider = ({ children }: GameContextProviderProps) => {
-  const [level, setLevel] = useState(0);
-  const [player, setPlayer] = useState<Position>({ ...mazes[0].player });
-  const [gameOver, setGameOver] = useState(false);
+  const [level, _setLevel] = useState(Number(localStorage.getItem('level') || 0));
+  const [player, setPlayer] = useWindowState<Position>('player', { ...mazes[0].player });
+  const [gameOver, setGameOver] = useWindowState<boolean>('gameOver', false);
   const [state, setState] = useState<GameState>('INITIAL');
-  // const [code, setCode] = useState(localStorage.getItem('code') || '');
   const [error, setError] = useState<string | null>('');
   const [path, setPath] = useState<Position[]>([]);
+  const [doorOpen, setDoorOpen] = useWindowState<boolean>('doorOpen', false);
+  const [speed, _setSpeed] = useWindowState<number>('speed', Number(localStorage.getItem('speed') || 200));
 
+  function setLevel(level: number) {
+    _setLevel(level);
+    localStorage.setItem('level', level.toString());
+  }
+
+  function setSpeed(speed: number) {
+    _setSpeed(speed);
+    localStorage.setItem('speed', speed.toString());
+  }
+
+  const blinkTimer = useRef<NodeJS.Timer>();
   const code = useRef<string>(localStorage.getItem('code') || '');
   const setCode = (value: string) => (code.current = value);
 
@@ -75,42 +86,41 @@ export const GameContextProvider = ({ children }: GameContextProviderProps) => {
   }, [level]);
 
   useEffect(() => {
-    if (!gameOver) return;
-    console.log('GAME OVER NEGUS');
-  }, [gameOver]);
+    updateConditions(player);
+  }, [path]);
 
   useEffect(() => {
     if (state === 'INITIAL') {
-      console.log('before restart');
-
       restart();
-    }
-    if (state !== 'DONE') return;
-    console.log(player);
-    if (isGameComplete(player)) {
-      console.log('COMPLETE');
-    } else {
-      console.log('GAME OVER');
     }
   }, [state]);
 
   async function wait() {
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, window.speed));
   }
 
   function restart() {
+    clearInterval(blinkTimer.current);
     setPath([]);
     setPlayer({ ...mazes[level].player });
-    updateConditions(player);
+    setDoorOpen(false);
     setGameOver(false);
-    window.gameOver = false;
+  }
+
+  function isPathValid(row: number, col: number) {
+    const hasPath = path.some((p) => p.row === row && p.col === col);
+    const isOnClosedDoor = !window.doorOpen && mazes[level].door?.row === row && mazes[level].door?.col === col;
+
+    if (window.gameOver) return false;
+
+    return hasPath && !isOnClosedDoor;
   }
 
   function updateConditions(player: Position) {
-    window.pathRight = path.some((p) => p.row === player.row && p.col === player.col + 1);
-    window.pathBelow = path.some((p) => p.row === player.row + 1 && p.col === player.col);
-    window.pathLeft = path.some((p) => p.row === player.row && p.col === player.col - 1);
-    window.pathAbove = path.some((p) => p.row === player.row - 1 && p.col === player.col);
+    window.pathRight = isPathValid(player.row, player.col + 1);
+    window.pathBelow = isPathValid(player.row + 1, player.col);
+    window.pathLeft = isPathValid(player.row, player.col - 1);
+    window.pathAbove = isPathValid(player.row - 1, player.col);
   }
 
   function isGameComplete(player: Position) {
@@ -119,11 +129,12 @@ export const GameContextProvider = ({ children }: GameContextProviderProps) => {
 
   function updatePlayer(rowDiff: number, colDiff: number) {
     setPlayer((prev) => {
-      if (window.gameOver) return prev;
+      if (window.gameOver) {
+        updateConditions(prev);
+        return prev;
+      }
       const newPos = { row: prev.row + rowDiff, col: prev.col + colDiff };
-      console.log(!path.some((p) => p.row === newPos.row && p.col === newPos.col));
-      window.gameOver = !path.some((p) => p.row === newPos.row && p.col === newPos.col);
-      setGameOver(window.gameOver);
+      setGameOver(!isPathValid(newPos.row, newPos.col));
       updateConditions(newPos);
       return newPos;
     });
@@ -149,17 +160,43 @@ export const GameContextProvider = ({ children }: GameContextProviderProps) => {
     await wait();
   }
 
+  async function pressButton() {
+    const buttonPos = mazes[level].button;
+    if (window.player.row !== buttonPos?.row || window.player.col !== buttonPos?.col) {
+      setGameOver(true);
+      return;
+    }
+
+    await wait();
+    setDoorOpen(true);
+  }
+
   const run = async () => {
     setState('RUNNING');
 
     try {
-      const awaitedCode = code.current.replace(/move(Right|Down|Left|Up)/g, (func) => `await ${func}`);
-      await eval(`(async () => {${awaitedCode}})()`);
+      const funcDefs: string[] = [];
+      let modifiedCode = code.current
+        .replace(/(move(Right|Down|Left|Up))|pressButton/g, (func) => `await ${func}`)
+        .replace(/function (\w+)/g, (_, funcName: string) => {
+          funcDefs.push(funcName);
+          return `async function ${funcName}`;
+        });
+
+      if (funcDefs.length !== 0) {
+        modifiedCode = modifiedCode.replace(
+          new RegExp(funcDefs.map((def) => `(?<!function )${def}`).join('|'), 'g'),
+          (def: string) => `await ${def}`
+        );
+      }
+
+      await eval(`(async () => {${modifiedCode}})()`);
       setError(null);
     } catch (e: any) {
       setError(e.toString());
     }
 
+    setGameOver(window.gameOver || !isGameComplete(window.player));
     setState('DONE');
   };
 
@@ -171,6 +208,8 @@ export const GameContextProvider = ({ children }: GameContextProviderProps) => {
     setState,
     setGameOver,
     level,
+    doorOpen,
+    blinkTimer,
     setLevel,
     code,
     setCode,
@@ -179,6 +218,8 @@ export const GameContextProvider = ({ children }: GameContextProviderProps) => {
     path,
     setPath,
     run,
+    speed,
+    setSpeed,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

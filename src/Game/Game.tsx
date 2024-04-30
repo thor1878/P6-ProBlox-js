@@ -6,6 +6,7 @@ import { mazes, Position } from './GameConfig';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowRotateBackward, faPlay } from '@fortawesome/free-solid-svg-icons';
 import { Menu } from './Menu';
+import { Speed } from './Speed';
 
 export const Game = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -50,23 +51,27 @@ export const Game = () => {
       ref={containerRef}
       className="flex w-1/2 flex-col items-center justify-center border-l-2 border-sky-700 bg-neutral-800 "
     >
-      <div className="flex gap-x-3">
+      <div className="flex">
         <button
-          className="text-green-500 disabled:text-neutral-500"
+          className="w-8 text-green-500 disabled:text-neutral-500"
           disabled={game.state !== 'INITIAL'}
           onClick={() => game.run()}
         >
           <FontAwesomeIcon icon={faPlay} className="text-2xl" />
         </button>
         <button
-          className="text-sky-500 disabled:text-gray-500"
+          className="w-8 text-sky-500 disabled:text-gray-500"
           disabled={game.state !== 'DONE'}
           onClick={() => game.setState('INITIAL')}
         >
           <FontAwesomeIcon icon={faArrowRotateBackward} className="text-2xl" />
         </button>
       </div>
-      <ReactP5Wrapper sketch={(p5) => sketch(p5, height, game)} />
+      <div className="relative flex">
+        <ReactP5Wrapper sketch={(p5) => sketch(p5, height, game)} />
+        <Speed />
+      </div>
+
       <Menu />
     </div>
   );
