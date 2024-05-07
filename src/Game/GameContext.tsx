@@ -167,7 +167,7 @@ export const GameContextProvider = ({ children }: GameContextProviderProps) => {
       return;
     }
 
-    setDoorOpen(true);
+    setDoorOpen(!window.doorOpen);
     await wait();
   }
 

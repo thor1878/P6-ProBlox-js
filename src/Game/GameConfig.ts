@@ -58,15 +58,15 @@ export const mazes: Maze[] = [
     ],
   },
   {
-    player: { row: 1, col: 7 },
+    player: { row: 1, col: 8 },
     goal: { row: 14, col: 6 },
     path: [
-      { row: 1, col: 7 },
-      { row: 8, col: 7 },
+      { row: 1, col: 8 },
+      { row: 8, col: 8 },
       { row: 8, col: 6 },
       { row: 14, col: 6 },
     ],
-    button: { row: 8, col: 6 },
+    button: { row: 8, col: 7 },
     door: { row: 11, col: 6 },
   },
   {
